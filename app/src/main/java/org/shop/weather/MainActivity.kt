@@ -3,6 +3,7 @@ package org.shop.weather
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -14,11 +15,13 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import org.shop.weather.databinding.ActivityMainBinding
+import org.shop.weather.databinding.ItemForecastBinding
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -88,6 +91,22 @@ class MainActivity : AppCompatActivity() {
         fusedLocationClient.lastLocation.addOnSuccessListener {
             Log.e("MainActivity - LastLocation", it.toString())
 
+            Thread {
+                try {
+                    val addressList =
+                        Geocoder(this, Locale.KOREA).getFromLocation(it.latitude, it.longitude, 1)
+                    runOnUiThread {
+                        Log.e("MainActivity - addresslist", addressList.toString())
+                        Log.e("MainActivity - get0", addressList?.get(0).toString())
+                        Log.e("MainActivity - thoroughfare", addressList?.get(0)?.thoroughfare.toString())
+
+                        binding.locationTextView.text = addressList?.get(0)?.thoroughfare.orEmpty()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }.start()
+
             val retrofit = Retrofit.Builder()
                 .baseUrl("http://apis.data.go.kr")
                 .addConverterFactory(GsonConverterFactory.create())
@@ -149,6 +168,22 @@ class MainActivity : AppCompatActivity() {
                     binding.skyTextView.text = currentForecast.weather
                     binding.precipitationTextView.text =
                         getString(R.string.precipitation_text, currentForecast.precipitation)
+
+                    binding.childForecastLayout.apply {
+                        list.forEachIndexed { index, forecast ->
+                            if (index == 0) {
+                                return@forEachIndexed
+                            }
+
+                            val itemView = ItemForecastBinding.inflate(layoutInflater)
+                            itemView.timeTextView.text = forecast.forecastTime
+                            itemView.weatherTextView.text = forecast.weather
+                            itemView.temperatureTextView.text =
+                                getString(R.string.temperature_text, forecast.temperature)
+
+                            addView(itemView.root)
+                        }
+                    }
                 }
 
                 override fun onFailure(call: Call<WeatherEntity>, t: Throwable) {
