@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    val locationPermissionRequest =
+    private val locationPermissionRequest =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             when {
                 permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
@@ -106,7 +106,10 @@ class MainActivity : AppCompatActivity() {
                 nx = point.nx,
                 ny = point.ny
             ).enqueue(object : Callback<WeatherEntity> {
-                override fun onResponse(call: Call<WeatherEntity>, response: Response<WeatherEntity>) {
+                override fun onResponse(
+                    call: Call<WeatherEntity>,
+                    response: Response<WeatherEntity>
+                ) {
                     val forecaseDataTimeMap = mutableMapOf<String, Forecast>()
                     val forecastList =
                         response.body()?.response?.body?.items?.forecastEntities.orEmpty()
@@ -121,27 +124,31 @@ class MainActivity : AppCompatActivity() {
 
                         forecaseDataTimeMap["${forecast.forecastDate}/${forecast.forecastTime}"]?.apply {
                             when (forecast.category) {
-                                Category.POP -> {
-                                    percipitation = forecast.forecastValue.toInt()
-                                }
-
-                                Category.PTY -> {
-                                    percipitationType = transformRainType(forecast)
-                                }
-
-                                Category.SKY -> {
-                                    sky = transformSky(forecast)
-                                }
-
-                                Category.TMP -> {
-                                    temperature = forecast.forecastValue.toDouble()
-                                }
-
+                                Category.POP -> precipitation = forecast.forecastValue.toInt()
+                                Category.PTY -> precipitationType = transformRainType(forecast)
+                                Category.SKY -> sky = transformSky(forecast)
+                                Category.TMP -> temperature = forecast.forecastValue.toDouble()
                                 else -> {}
                             }
                         }
                     }
                     Log.e("MainActivity Forecast", forecaseDataTimeMap.toString())
+
+                    val list = forecaseDataTimeMap.values.toMutableList()
+                    list.sortWith { f1, f2 ->
+                        val f1DataTime = "${f1.forecastDate}${f1.forecastTime}"
+                        val f2DataTime = "${f2.forecastDate}${f2.forecastTime}"
+
+                        return@sortWith f1DataTime.compareTo(f2DataTime)
+                    }
+
+                    val currentForecast = list.first()
+
+                    binding.temperatureTextView.text =
+                        getString(R.string.temperature_text, currentForecast.temperature)
+                    binding.skyTextView.text = currentForecast.weather
+                    binding.precipitationTextView.text =
+                        getString(R.string.precipitation_text, currentForecast.precipitation)
                 }
 
                 override fun onFailure(call: Call<WeatherEntity>, t: Throwable) {
