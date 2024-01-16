@@ -40,6 +40,7 @@
       - Foreground 서비스는 마이크나 카메라에 Access 할 수 없다
    
 ## [Android Widget](https://developer.android.com/guide/topics/appwidgets?hl=ko)
+  - [앱 위젯 디자인 가이드라인](https://developer.android.com/guide/practices/ui_guidelines/widget_design?hl=ko)
 
 ## [공공 데이터 포털](https://www.data.go.kr/)
   - 정부에서 제공하고 있는 데이터를 활용 신청하여 사용할 수 있음
