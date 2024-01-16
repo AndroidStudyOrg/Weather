@@ -98,7 +98,10 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         Log.e("MainActivity - addresslist", addressList.toString())
                         Log.e("MainActivity - get0", addressList?.get(0).toString())
-                        Log.e("MainActivity - thoroughfare", addressList?.get(0)?.thoroughfare.toString())
+                        Log.e(
+                            "MainActivity - thoroughfare",
+                            addressList?.get(0)?.thoroughfare.toString()
+                        )
 
                         binding.locationTextView.text = addressList?.get(0)?.thoroughfare.orEmpty()
                     }
