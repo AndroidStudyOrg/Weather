@@ -1,6 +1,9 @@
 package org.shop.weather
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
@@ -10,6 +13,7 @@ import android.content.pm.PackageManager
 import android.os.IBinder
 import android.widget.RemoteViews
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationServices
 
 class UpdateWeatherService : Service() {
@@ -24,6 +28,11 @@ class UpdateWeatherService : Service() {
          *  notification channel을 만들어주고, foregroundService로 전환시켜줘야한다.
          */
 
+        // notification channel
+        createChannel()
+        // foregroundService
+        startForeground(1, createNotification())
+
         val appwidgetManager: AppWidgetManager = AppWidgetManager.getInstance(this)
 
         if (ActivityCompat.checkSelfPermission(
@@ -31,7 +40,21 @@ class UpdateWeatherService : Service() {
                 Manifest.permission.ACCESS_BACKGROUND_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // TODO 위젯을 권한없음 상태로 표시하고 클릭했을 때 권한 팝업을 얻을 수 있도록 추가
+            val pendingIntent: PendingIntent =
+                Intent(this, SettingActivity::class.java).let { intent ->
+                    PendingIntent.getActivity(this, 2, intent, PendingIntent.FLAG_IMMUTABLE)
+                }
+
+            RemoteViews(packageName, R.layout.widget_weather).apply {
+                setTextViewText(R.id.temperatureTextView, "권한 없음")
+                setTextViewText(R.id.weatherTextView, "")
+                setOnClickPendingIntent(R.id.temperatureTextView, pendingIntent)
+            }.also { remoteViews ->
+                val appWidgetName = ComponentName(this, WeatherAppWidgetProvider::class.java)
+                appwidgetManager.updateAppWidget(appWidgetName, remoteViews)
+            }
+
+            stopSelf()
 
             return super.onStartCommand(intent, flags, startId)
         }
@@ -71,12 +94,54 @@ class UpdateWeatherService : Service() {
                     stopSelf()
                 },
                 failureCallback = {
-                    // TODO 위젯을 에러상태로 표시
+                    val pendingServiceIntent: PendingIntent =
+                        Intent(this, UpdateWeatherService::class.java).let { intent ->
+                            PendingIntent.getService(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
+                        }
+
+                    RemoteViews(packageName, R.layout.widget_weather).apply {
+                        setTextViewText(
+                            R.id.temperatureTextView,
+                            "에러"
+                        )
+                        setTextViewText(R.id.weatherTextView, "")
+                        setOnClickPendingIntent(R.id.temperatureTextView, pendingServiceIntent)
+                    }.also { remoteViews ->
+                        val appWidgetName =
+                            ComponentName(this, WeatherAppWidgetProvider::class.java)
+                        appwidgetManager.updateAppWidget(appWidgetName, remoteViews)
+                    }
 
                     stopSelf()
                 }
             )
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun createChannel() {
+        val channel =
+            NotificationChannel(NOTIFICATION_CHANNEL, "날씨앱", NotificationManager.IMPORTANCE_LOW)
+        channel.description = "위젯을 업데이트하는 채널"
+
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun createNotification(): Notification {
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentTitle("날씨앱")
+            .setContentText("날씨 업데이트")
+            .build()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    companion object {
+        const val NOTIFICATION_CHANNEL = "widget_refresh_channel"
     }
 }
